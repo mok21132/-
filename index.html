@@ -241,46 +241,26 @@ async function extractAll(){
   document.getElementById('extractText').textContent='분석 중...';
   document.getElementById('logBox').innerHTML='';
   hide('extractedCard');hide('resultSection');
-  log(`총 ${images.length}장 × 3회 분석 시작...`,'info');
+  log(`총 ${images.length}장 분석 시작...`,'info');
   setStep(2);
 
-  // 각 이미지를 3번씩 분석해서 다수결로 확정
-  const RUNS=3;
-  // votes[name][time] = 등장 횟수
-  const nameVotes={};
-
+  const allData={};
   for(let i=0;i<images.length;i++){
-    for(let run=1;run<=RUNS;run++){
-      log(`[사진 ${i+1}/${images.length}] ${run}차 분석 중...`);
-      try{
-        const res=await analyzeImage(images[i].data);
-        for(const [name,times] of Object.entries(res)){
-          if(!nameVotes[name])nameVotes[name]={};
-          times.forEach(t=>{
-            nameVotes[name][t]=(nameVotes[name][t]||0)+1;
-          });
-          // 불참(빈배열)도 투표에 반영
-          if(times.length===0){
-            nameVotes[name]['__none__']=(nameVotes[name]['__none__']||0)+1;
-          }
-        }
-        log(`  → ${Object.keys(res).length}명 추출`,'ok');
-      }catch(e){log(`  → 오류: ${e.message}`,'err');}
-    }
+    log(`[${i+1}/${images.length}] 사진 분석 중...`);
+    try{
+      const res=await analyzeImage(images[i].data);
+      let cnt=0;
+      for(const [name,times] of Object.entries(res)){
+        if(!allData[name])allData[name]=new Set();
+        times.forEach(t=>allData[name].add(t));cnt++;
+      }
+      log(`  → ${cnt}명 추출 완료`,'ok');
+    }catch(e){log(`  → 오류: ${e.message}`,'err');}
   }
 
-  // 다수결: 이름은 2번 이상 등장한 경우만 확정, 시간대는 2번 이상 투표된 것만 채택
   applicants={};
-  for(const [name,timeVotes] of Object.entries(nameVotes)){
-    const totalAppearances=Object.values(timeVotes).reduce((a,b)=>a+b,0);
-    if(totalAppearances<2) continue; // 1번만 나온 이름은 오인식으로 간주
-    const confirmedTimes=Object.entries(timeVotes)
-      .filter(([t,cnt])=>t!=='__none__'&&cnt>=2)
-      .map(([t])=>t);
-    applicants[name]=confirmedTimes;
-  }
-
-  log(`\n총 ${Object.keys(applicants).length}명 확정 완료 (3회 다수결)`,'ok');
+  for(const [name,ts] of Object.entries(allData))applicants[name]=[...ts];
+  log(`\n총 ${Object.keys(applicants).length}명 추출 완료`,'ok');
   document.getElementById('extractIcon').textContent='✦';
   document.getElementById('extractText').textContent='AI로 이름 추출하기';
   extractBtn.disabled=false;
@@ -298,10 +278,15 @@ async function analyzeImage(base64){
 - 이미지에 보이는 글자를 절대 바꾸거나 추측하지 마세요
 - 다음 글자 쌍을 절대 혼동하지 마세요 (앞이 올바른 글자입니다):
   · 윤 ≠ 유/운 (예: 윤채원을 유채원으로 쓰지 말것)
-  · 태 ≠ 대 (예: 김태윤을 김대윤으로 쓰지 말것)
-  · 찬 ≠ 천 (예: 찬희를 천희로 쓰지 말것)
+  · 태 ≠ 대/타 (예: 김태윤을 김태운/김대윤으로 쓰지 말것 → 반드시 김태윤)
+  · 찬 ≠ 천/친 (예: 찬희를 천희/친희로 쓰지 말것 → 반드시 찬희)
+  · 헌 ≠ 한 (예: 최주헌을 최주한으로 쓰지 말것 → 반드시 최주헌)
   · 원 ≠ 완/안, 채 ≠ 체, 희 ≠ 의/기
   · 준 ≠ 순, 현 ≠ 헌, 석 ≠ 섭, 수 ≠ 주
+- 위 예시에 나온 이름이 사진에 있다면 반드시 올바른 이름으로 적으세요:
+  · 김태윤 (김태운/김대윤 절대 금지)
+  · 찬희 (천희/친희 절대 금지)
+  · 최주헌 (최주한 절대 금지)
 - 이름 옆 아이콘, 뱃지, 숫자는 이름에 포함하지 마세요
 - 글자가 불확실하면 이미지를 더 주의 깊게 살펴보세요
 
@@ -471,8 +456,13 @@ function renderResult(assignments,tableApps,activeTables,allStudents,assignCount
         ${isActive?`<span class="badge badge-green">${members.length}명 배정 · 신청 ${tableApps[i].length}명</span>`:`<span class="badge badge-red">none · 신청 ${tableApps[i].length}명</span>`}
       </div>
       ${isActive
-        ?`<div class="names-wrap">${members.map(n=>`<span class="name-chip">${n}</span>`).join('')||'<span class="none-hint">없음</span>'}</div>`
-        :`<div class="none-hint">신청 ${tableApps[i].length}명 · 15명 미만</div>`}
+        ?`<div class="names-wrap">${members.map(n=>`<span class="name-chip">${n}</span>`).join('')||'<span class="none-hint">없음</span>'}</div>
+          ${tableApps[i].filter(n=>!members.includes(n)).length>0
+            ?`<div class="none-hint" style="margin-top:8px;margin-bottom:4px;">미선발 (${tableApps[i].filter(n=>!members.includes(n)).length}명)</div>
+              <div class="names-wrap">${tableApps[i].filter(n=>!members.includes(n)).map(n=>`<span class="name-chip" style="opacity:0.45;text-decoration:line-through;">${n}</span>`).join('')}</div>`
+            :''}`
+        :`<div class="none-hint" style="margin-bottom:6px;">신청 ${tableApps[i].length}명 · 15명 미만</div>
+          <div class="names-wrap">${tableApps[i].map(n=>`<span class="name-chip" style="opacity:0.5;">${n}</span>`).join('')||''}</div>`}
     `;
     grid.appendChild(card);
   });

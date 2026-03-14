@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>테이블 배정 시스템</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0e0f11;--bg2:#16181c;--bg3:#1e2026;
+    --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.14);
+    --text:#f0f0f0;--text2:#8a8f9a;--text3:#555a66;
+    --accent:#4f8cff;--accent2:#2d6aff;
+    --green:#3ecf8e;--green-bg:rgba(62,207,142,0.1);
+    --red:#f87171;--red-bg:rgba(248,113,113,0.1);
+    --amber:#fbbf24;--amber-bg:rgba(251,191,36,0.1);
+    --mono:'DM Mono',monospace;--sans:'Noto Sans KR',sans-serif;
+    --radius:12px;--radius-sm:8px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.6;}
+  .page{max-width:860px;margin:0 auto;padding:48px 24px 80px;}
+  header{margin-bottom:48px;}
+  .logo{display:flex;align-items:center;gap:12px;margin-bottom:20px;}
+  .logo-mark{width:36px;height:36px;border-radius:10px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;}
+  .logo-name{font-size:14px;font-weight:500;color:var(--text2);letter-spacing:0.05em;}
+  h1{font-size:clamp(28px,5vw,42px);font-weight:700;letter-spacing:-0.03em;line-height:1.2;}
+  h1 span{color:var(--accent);}
+  .subtitle{margin-top:10px;font-size:15px;color:var(--text2);font-weight:300;}
+  .steps{display:flex;align-items:center;margin-bottom:40px;}
+  .step-item{display:flex;align-items:center;gap:10px;}
+  .step-num{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:var(--text3);font-family:var(--mono);transition:all 0.3s;}
+  .step-num.active{border-color:var(--accent);color:var(--accent);background:rgba(79,140,255,0.1);}
+  .step-num.done{border-color:var(--green);background:var(--green-bg);color:var(--green);}
+  .step-label{font-size:13px;color:var(--text3);transition:color 0.3s;}
+  .step-label.active{color:var(--text);}
+  .step-line{flex:1;height:1px;background:var(--border);margin:0 12px;min-width:20px;}
+  .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:16px;}
+  .card-title{font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:16px;}
+  .upload-zone{border:1.5px dashed var(--border2);border-radius:var(--radius);padding:40px 24px;text-align:center;cursor:pointer;transition:all 0.2s;}
+  .upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:rgba(79,140,255,0.04);}
+  .upload-title{font-size:16px;font-weight:500;margin-bottom:6px;}
+  .upload-hint{font-size:13px;color:var(--text2);}
+  input[type=file]{display:none;}
+  .preview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;margin-top:16px;}
+  .preview-item{position:relative;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border);aspect-ratio:9/16;animation:fadeIn 0.3s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:scale(0.9);}to{opacity:1;transform:scale(1);}}
+  .preview-item img{width:100%;height:100%;object-fit:cover;}
+  .preview-rm{position:absolute;top:5px;right:5px;width:22px;height:22px;background:rgba(0,0,0,0.7);border:none;border-radius:50%;color:#fff;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.15s;}
+  .preview-item:hover .preview-rm{opacity:1;}
+  .preview-badge{position:absolute;bottom:5px;left:5px;background:rgba(0,0,0,0.65);color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;font-family:var(--mono);}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--bg3);color:var(--text);transition:all 0.15s;font-family:var(--sans);}
+  .btn:hover{background:var(--bg2);}
+  .btn:active{transform:scale(0.98);}
+  .btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .btn-primary:hover{background:var(--accent2);border-color:var(--accent2);}
+  .btn-primary:disabled{opacity:0.35;cursor:not-allowed;transform:none;}
+  .btn-green{background:var(--green-bg);border-color:var(--green);color:var(--green);}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;}
+  .spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .log-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;font-family:var(--mono);font-size:13px;color:var(--text2);max-height:180px;overflow-y:auto;line-height:1.8;}
+  .log-ok{color:var(--green);}
+  .log-err{color:var(--red);}
+  .log-info{color:var(--accent);}
+  .ap-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .ap-table th{text-align:left;padding:8px 10px;color:var(--text3);font-weight:500;border-bottom:1px solid var(--border);font-size:11px;text-transform:uppercase;letter-spacing:0.07em;}
+  .ap-table td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  .ap-table tr:last-child td{border-bottom:none;}
+  .ap-table tr:hover td{background:var(--bg3);}
+  .chip{display:inline-flex;align-items:center;font-size:11px;padding:2px 8px;border-radius:20px;font-family:var(--mono);margin:2px;}
+  .chip-blue{background:rgba(79,140,255,0.15);color:var(--accent);border:1px solid rgba(79,140,255,0.3);}
+  .chip-gray{background:var(--bg3);color:var(--text3);border:1px solid var(--border);}
+  .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
+  @media(max-width:500px){.stats-row{grid-template-columns:repeat(2,1fr);}}
+  .stat{background:var(--bg3);border-radius:var(--radius-sm);padding:14px 16px;border:1px solid var(--border);}
+  .stat-num{font-size:26px;font-weight:700;font-family:var(--mono);color:var(--text);letter-spacing:-0.02em;}
+  .stat-label{font-size:11px;color:var(--text3);margin-top:2px;text-transform:uppercase;letter-spacing:0.07em;}
+  .result-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media(max-width:540px){.result-grid{grid-template-columns:1fr;}}
+  .tbl-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;}
+  .tbl-card.active{border-color:rgba(62,207,142,0.3);}
+  .tbl-card.inactive{opacity:0.55;}
+  .tbl-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;}
+  .tbl-name{font-size:14px;font-weight:600;}
+  .tbl-time{font-size:12px;color:var(--text2);margin-top:2px;font-family:var(--mono);}
+  .badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500;font-family:var(--mono);white-space:nowrap;}
+  .badge-green{background:var(--green-bg);color:var(--green);border:1px solid rgba(62,207,142,0.3);}
+  .badge-red{background:var(--red-bg);color:var(--red);border:1px solid rgba(248,113,113,0.3);}
+  .names-wrap{display:flex;flex-wrap:wrap;gap:4px;}
+  .name-chip{font-size:12px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:20px;padding:2px 9px;}
+  .none-hint{font-size:12px;color:var(--text3);font-style:italic;}
+  .info-box{border-radius:var(--radius-sm);padding:12px 16px;font-size:13px;margin-top:10px;}
+  .info-box.green{background:var(--green-bg);border:1px solid rgba(62,207,142,0.3);color:var(--green);}
+  .info-box.amber{background:var(--amber-bg);border:1px solid rgba(251,191,36,0.3);color:var(--amber);}
+  .divider{border:none;border-top:1px solid var(--border);margin:28px 0;}
+  .hidden{display:none!important;}
+  .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 20px;font-size:13px;color:var(--text);opacity:0;transition:all 0.25s;pointer-events:none;z-index:1000;white-space:nowrap;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  ::-webkit-scrollbar{width:6px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="logo">
+      <div class="logo-mark">T</div>
+      <span class="logo-name">TABLE ASSIGN</span>
+    </div>
+    <h1>카카오톡 투표 사진으로<br><span>자동 테이블 배정</span></h1>
+    <p class="subtitle">투표 현황 캡처를 올리면 AI가 이름을 읽고, 규칙에 맞게 배정합니다.</p>
+  </header>
+
+  <div class="steps">
+    <div class="step-item"><div class="step-num active" id="s1">1</div><div class="step-label active" id="sl1">사진 업로드</div></div>
+    <div class="step-line"></div>
+    <div class="step-item"><div class="step-num" id="s2">2</div><div class="step-label" id="sl2">AI 추출</div></div>
+    <div class="step-line"></div>
+    <div class="step-item"><div class="step-num" id="s3">3</div><div class="step-label" id="sl3">배정 결과</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">투표 현황 캡처 사진</div>
+    <div class="upload-zone" id="dropzone">
+      <div class="upload-title">사진을 드래그하거나 클릭해서 업로드</div>
+      <div class="upload-hint">카카오톡 투표 현황 캡처 · 최대 10장 · JPG / PNG</div>
+      <input type="file" id="fileInput" accept="image/*" multiple />
+    </div>
+    <div class="preview-grid" id="previewGrid"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="extractBtn" disabled>
+        <span id="extractIcon">✦</span>
+        <span id="extractText">AI로 이름 추출하기</span>
+      </button>
+      <button class="btn" id="resetBtn">초기화</button>
+    </div>
+  </div>
+
+  <div class="card hidden" id="logCard">
+    <div class="card-title">진행 상황</div>
+    <div class="log-box" id="logBox"></div>
+  </div>
+
+  <div class="card hidden" id="extractedCard">
+    <div class="card-title">추출된 신청 현황 <span id="extractCount" style="color:var(--accent);font-family:var(--mono);"></span></div>
+    <div style="max-height:320px;overflow-y:auto;">
+      <table class="ap-table">
+        <thead><tr><th>#</th><th>이름</th><th>신청 시간대</th></tr></thead>
+        <tbody id="apBody"></tbody>
+      </table>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="assignBtn">배정 실행하기</button>
+      <button class="btn" id="reExtractBtn">다시 추출</button>
+    </div>
+  </div>
+
+  <div class="hidden" id="resultSection">
+    <hr class="divider" />
+    <div class="card-title" style="margin-bottom:14px;">배정 결과</div>
+    <div class="stats-row" id="statsRow"></div>
+    <div class="result-grid" id="resultGrid"></div>
+    <div id="resultInfo"></div>
+    <div class="btn-row">
+      <button class="btn" id="rerunBtn">다시 배정</button>
+      <button class="btn btn-green" id="copyBtn">결과 복사</button>
+      <button class="btn" id="downloadBtn">CSV 저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const TABLE_INFO=[
+  {name:"Table 1",time:"화 6:30-7:30"},{name:"Table 2",time:"화 7:30-8:30"},
+  {name:"Table 3",time:"수 6:30-7:30"},{name:"Table 4",time:"수 7:30-8:30"},
+  {name:"Table 5",time:"금 6:30-7:30"},{name:"Table 6",time:"금 7:30-8:30"},
+];
+const TIME_TO_TABLE={"화 6:30-7:30":0,"화 7:30-8:30":1,"수 6:30-7:30":2,"수 7:30-8:30":3,"금 6:30-7:30":4,"금 7:30-8:30":5};
+const MAX=16,MIN=16;
+let images=[],applicants={},lastAssignments=null;
+
+const dropzone=document.getElementById('dropzone');
+const fileInput=document.getElementById('fileInput');
+const extractBtn=document.getElementById('extractBtn');
+
+dropzone.addEventListener('click',()=>fileInput.click());
+dropzone.addEventListener('dragover',e=>{e.preventDefault();dropzone.classList.add('drag-over');});
+dropzone.addEventListener('dragleave',()=>dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop',e=>{e.preventDefault();dropzone.classList.remove('drag-over');addFiles(e.dataTransfer.files);});
+fileInput.addEventListener('change',e=>addFiles(e.target.files));
+
+function addFiles(files){
+  for(const f of files){
+    if(images.length>=10)break;
+    if(!f.type.startsWith('image/'))continue;
+    const r=new FileReader();
+    r.onload=ev=>{images.push({data:ev.target.result});renderPreviews();};
+    r.readAsDataURL(f);
+  }
+}
+
+function renderPreviews(){
+  const g=document.getElementById('previewGrid');g.innerHTML='';
+  images.forEach((img,i)=>{
+    const d=document.createElement('div');d.className='preview-item';
+    d.innerHTML=`<img src="${img.data}"/><span class="preview-badge">${i+1}</span><button class="preview-rm" data-i="${i}">✕</button>`;
+    g.appendChild(d);
+  });
+  document.querySelectorAll('.preview-rm').forEach(btn=>{
+    btn.addEventListener('click',e=>{e.stopPropagation();images.splice(+btn.dataset.i,1);renderPreviews();});
+  });
+  extractBtn.disabled=images.length===0;
+}
+
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  images=[];applicants={};lastAssignments=null;
+  document.getElementById('previewGrid').innerHTML='';
+  document.getElementById('logBox').innerHTML='';
+  hide('logCard');hide('extractedCard');hide('resultSection');
+  extractBtn.disabled=true;fileInput.value='';setStep(1);
+});
+
+extractBtn.addEventListener('click',extractAll);
+
+function log(msg,cls=''){
+  show('logCard');
+  const b=document.getElementById('logBox');
+  const d=document.createElement('div');
+  d.className=cls?`log-${cls}`:'';
+  d.textContent=msg;b.appendChild(d);b.scrollTop=b.scrollHeight;
+}
+
+async function extractAll(){
+  extractBtn.disabled=true;
+  document.getElementById('extractIcon').innerHTML='<span class="spinner"></span>';
+  document.getElementById('extractText').textContent='분석 중...';
+  document.getElementById('logBox').innerHTML='';
+  hide('extractedCard');hide('resultSection');
+  log(`총 ${images.length}장 분석 시작...`,'info');
+  setStep(2);
+
+  const allData={};
+  for(let i=0;i<images.length;i++){
+    log(`[${i+1}/${images.length}] 사진 분석 중...`);
+    try{
+      const res=await analyzeImage(images[i].data);
+      let cnt=0;
+      for(const [name,times] of Object.entries(res)){
+        if(!allData[name])allData[name]=new Set();
+        times.forEach(t=>allData[name].add(t));cnt++;
+      }
+      log(`  → ${cnt}명 추출 완료`,'ok');
+    }catch(e){log(`  → 오류: ${e.message}`,'err');}
+  }
+
+  applicants={};
+  for(const [name,ts] of Object.entries(allData))applicants[name]=[...ts];
+  log(`\n총 ${Object.keys(applicants).length}명 추출 완료`,'ok');
+  document.getElementById('extractIcon').textContent='✦';
+  document.getElementById('extractText').textContent='AI로 이름 추출하기';
+  extractBtn.disabled=false;
+  renderApplicants();
+}
+
+async function analyzeImage(base64){
+  const mediaType=base64.startsWith('data:image/png')?'image/png':'image/jpeg';
+  const pure=base64.split(',')[1];
+  const prompt=`이 이미지는 카카오톡 투표 현황 화면입니다.
+각 멤버의 이름과 신청 시간대를 모두 추출해주세요.
+
+투표 항목과 시간대 매핑 규칙 (반드시 따르세요):
+- "1차 참석" → ["화 6:30-7:30"]
+- "2차 참석" → ["금 7:30-8:30"]
+- "1+2차 참석" → ["화 6:30-7:30", "금 7:30-8:30"]
+- "불참" → []
+
+출력 가능한 시간대: 화 6:30-7:30 / 화 7:30-8:30 / 수 6:30-7:30 / 수 7:30-8:30 / 금 6:30-7:30 / 금 7:30-8:30
+
+반드시 JSON만 반환 (다른 텍스트 없이):
+{"이름1": ["화 6:30-7:30"], "이름2": ["화 6:30-7:30","금 7:30-8:30"], "이름3": []}`;
+
+  const resp=await fetch('/.netlify/functions/claude',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      model:'claude-sonnet-4-20250514',max_tokens:1500,
+      messages:[{role:'user',content:[
+        {type:'image',source:{type:'base64',media_type:mediaType,data:pure}},
+        {type:'text',text:prompt}
+      ]}]
+    })
+  });
+  if(!resp.ok){const e=await resp.json();throw new Error(e.error?.message||'API 오류');}
+  const data=await resp.json();
+  const text=data.content.map(c=>c.text||'').join('');
+  return JSON.parse(text.replace(/```json|```/g,'').trim());
+}
+
+function renderApplicants(){
+  const tbody=document.getElementById('apBody');tbody.innerHTML='';
+  const sorted=Object.entries(applicants).sort((a,b)=>a[0].localeCompare(b[0],'ko'));
+  document.getElementById('extractCount').textContent=`(${sorted.length}명)`;
+  sorted.forEach(([name,times],i)=>{
+    const tr=document.createElement('tr');
+    const chips=times.length
+      ?times.map(t=>`<span class="chip chip-blue">${t}</span>`).join('')
+      :`<span class="chip chip-gray">불참</span>`;
+    tr.innerHTML=`<td style="color:var(--text3);font-family:var(--mono);font-size:12px;">${i+1}</td><td style="font-weight:500;">${name}</td><td>${chips}</td>`;
+    tbody.appendChild(tr);
+  });
+  show('extractedCard');
+}
+
+document.getElementById('assignBtn').addEventListener('click',runAssignment);
+document.getElementById('rerunBtn').addEventListener('click',runAssignment);
+document.getElementById('reExtractBtn').addEventListener('click',()=>{
+  hide('extractedCard');hide('resultSection');
+  document.getElementById('logBox').innerHTML='';setStep(1);
+});
+
+function runAssignment(){
+  setStep(3);
+  const tableApps=Array.from({length:6},()=>[]);
+  for(const [name,times] of Object.entries(applicants))
+    for(const t of times) if(t in TIME_TO_TABLE) tableApps[TIME_TO_TABLE[t]].push(name);
+
+  const activeTables=new Set(tableApps.map((a,i)=>a.length>=MIN?i:-1).filter(i=>i>=0));
+  const allStudents=[...new Set(Object.keys(applicants))];
+  const assignments=Array.from({length:6},()=>[]);
+  const assignCount={};
+  for(const s of allStudents) assignCount[s]=0;
+
+  if(activeTables.size>0){
+    const sat={};
+    for(const s of allStudents) sat[s]=[...activeTables].filter(t=>tableApps[t].includes(s));
+
+    // PASS 1: 최소 1번 배정 (선택지 적은 사람 우선)
+    const queue=allStudents.filter(s=>sat[s].length>0).sort((a,b)=>sat[a].length-sat[b].length);
+    const assignedOnce=new Set();
+    for(const s of queue){
+      for(const t of sat[s]){
+        if(assignments[t].length<MAX){assignments[t].push(s);assignedOnce.add(s);assignCount[s]++;break;}
+      }
+    }
+    // PASS 2: 미배정자 랜덤 배정
+    for(const s of shuffle(allStudents.filter(s=>!assignedOnce.has(s)))){
+      const avail=[...activeTables].filter(t=>assignments[t].length<MAX);
+      if(avail.length){assignments[shuffle(avail)[0]].push(s);assignCount[s]++;}
+    }
+    // PASS 3: 남은 자리 — 배정 횟수 적은 사람 우선 (편차 최소화)
+    let changed=true;
+    while(changed){
+      changed=false;
+      for(const t of activeTables){
+        if(assignments[t].length>=MAX)continue;
+        const cands=tableApps[t].filter(s=>!assignments[t].includes(s))
+          .sort((a,b)=>assignCount[a]-assignCount[b]||Math.random()-0.5);
+        if(!cands.length)continue;
+        assignments[t].push(cands[0]);assignCount[cands[0]]++;changed=true;
+      }
+    }
+  }
+
+  lastAssignments={assignments,tableApps,activeTables,allStudents,assignCount};
+  renderResult(assignments,tableApps,activeTables,allStudents,assignCount);
+}
+
+function shuffle(a){const r=[...a];for(let i=r.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[r[i],r[j]]=[r[j],r[i]];}return r;}
+
+function renderResult(assignments,tableApps,activeTables,allStudents,assignCount){
+  const assigned=new Set(assignments.flat());
+  const unassigned=allStudents.filter(s=>!assigned.has(s));
+  const counts=allStudents.map(s=>assignCount[s]).filter(v=>v>0);
+  const minC=counts.length?Math.min(...counts):0;
+  const maxC=counts.length?Math.max(...counts):0;
+
+  document.getElementById('statsRow').innerHTML=`
+    <div class="stat"><div class="stat-num">${allStudents.length}</div><div class="stat-label">전체 학생</div></div>
+    <div class="stat"><div class="stat-num">${activeTables.size}</div><div class="stat-label">활성 테이블</div></div>
+    <div class="stat"><div class="stat-num">${assigned.size}</div><div class="stat-label">배정 완료</div></div>
+    <div class="stat"><div class="stat-num" style="color:${unassigned.length?'var(--red)':'var(--green)'}">${unassigned.length}</div><div class="stat-label">미배정</div></div>
+  `;
+
+  const grid=document.getElementById('resultGrid');grid.innerHTML='';
+  TABLE_INFO.forEach((info,i)=>{
+    const isActive=activeTables.has(i);
+    const card=document.createElement('div');
+    card.className='tbl-card '+(isActive?'active':'inactive');
+    const members=assignments[i];
+    card.innerHTML=`
+      <div class="tbl-head">
+        <div><div class="tbl-name">${info.name}</div><div class="tbl-time">${info.time}</div></div>
+        ${isActive?`<span class="badge badge-green">${members.length}명</span>`:`<span class="badge badge-red">none</span>`}
+      </div>
+      ${isActive
+        ?`<div class="names-wrap">${members.map(n=>`<span class="name-chip">${n}</span>`).join('')||'<span class="none-hint">없음</span>'}</div>`
+        :`<div class="none-hint">신청 ${tableApps[i].length}명 · 16명 미만</div>`}
+    `;
+    grid.appendChild(card);
+  });
+
+  let infoHtml=unassigned.length
+    ?`<div class="info-box amber">⚠ 미배정 학생 (${unassigned.length}명): ${unassigned.join(', ')}</div>`
+    :`<div class="info-box green">✓ 모든 학생이 최소 1개 테이블에 배정됐습니다</div>`;
+  if(maxC>0)
+    infoHtml+=`<div class="info-box ${maxC-minC<=1?'green':'amber'}" style="margin-top:8px;">배정 횟수 범위: 최소 ${minC}회 ~ 최대 ${maxC}회</div>`;
+  document.getElementById('resultInfo').innerHTML=infoHtml;
+  show('resultSection');
+}
+
+document.getElementById('copyBtn').addEventListener('click',()=>{
+  if(!lastAssignments)return;
+  const {assignments,activeTables}=lastAssignments;
+  const lines=TABLE_INFO.map((info,i)=>`${info.name} (${info.time}): ${activeTables.has(i)?assignments[i].join(', '):'none'}`);
+  navigator.clipboard.writeText(lines.join('\n')).then(()=>toast('결과가 복사됐습니다'));
+});
+
+document.getElementById('downloadBtn').addEventListener('click',()=>{
+  if(!lastAssignments)return;
+  const {assignments,activeTables}=lastAssignments;
+  let csv='Table,요일/시간,배정인원';
+  for(let j=1;j<=16;j++) csv+=`,학생${j}`;
+  csv+='\n';
+  TABLE_INFO.forEach((info,i)=>{
+    const m=activeTables.has(i)?assignments[i]:[];
+    let row=`${info.name},${info.time},${activeTables.has(i)?m.length:'none'}`;
+    for(let j=0;j<16;j++) row+=','+(m[j]||'');
+    csv+=row+'\n';
+  });
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='table_배정결과.csv';a.click();
+  toast('CSV가 저장됐습니다');
+});
+
+function show(id){document.getElementById(id).classList.remove('hidden');}
+function hide(id){document.getElementById(id).classList.add('hidden');}
+function setStep(n){
+  [1,2,3].forEach(i=>{
+    const el=document.getElementById('s'+i),lb=document.getElementById('sl'+i);
+    if(i<n){el.className='step-num done';el.textContent='✓';}
+    else if(i===n){el.className='step-num active';el.textContent=String(i);}
+    else{el.className='step-num';el.textContent=String(i);}
+    lb.className='step-label'+(i===n?' active':'');
+  });
+}
+function toast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;
+  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);
+}
+</script>
+</body>
+</html>

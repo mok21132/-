@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>토마스실 배정 프로그램 57</title>
+<title>토마스실 배정 프로그램</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -110,8 +110,8 @@
       <div class="logo-mark">T</div>
       <span class="logo-name">TABLE ASSIGN</span>
     </div>
-    <h1>토마스실 배정 프로그램<br><span>57</span></h1>
-    <p class="subtitle">투표 현황에 맞게 프로그램이 랜덤하게 배정합니다.</p>
+    <h1>토마스실<br><span>배정 프로그램</span></h1>
+    <p class="subtitle">투표 현황에 맞게 랜덤하게 배정됩니다.</p>
   </header>
 
   <div class="steps">
@@ -436,7 +436,7 @@ function renderResult(assignments,tableApps,activeTables,allStudents,assignCount
     card.innerHTML=`
       <div class="tbl-head">
         <div><div class="tbl-name">${info.name}</div><div class="tbl-time">${info.time}</div></div>
-        ${isActive?`<span class="badge badge-green">${members.length}명</span>`:`<span class="badge badge-red">none</span>`}
+        ${isActive?`<span class="badge badge-green">${members.length}명 배정 · 신청 ${tableApps[i].length}명</span>`:`<span class="badge badge-red">none · 신청 ${tableApps[i].length}명</span>`}
       </div>
       ${isActive
         ?`<div class="names-wrap">${members.map(n=>`<span class="name-chip">${n}</span>`).join('')||'<span class="none-hint">없음</span>'}</div>`

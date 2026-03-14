@@ -310,14 +310,39 @@ function renderApplicants(){
     const chips=times.length
       ?times.map(t=>`<span class="chip chip-blue">${t}</span>`).join('')
       :`<span class="chip chip-gray">불참</span>`;
-    tr.innerHTML=`<td style="color:var(--text3);font-family:var(--mono);font-size:12px;">${i+1}</td><td style="font-weight:500;">${name}</td><td>${chips}</td>`;
+    tr.innerHTML=`
+      <td style="color:var(--text3);font-family:var(--mono);font-size:12px;">${i+1}</td>
+      <td><input style="background:transparent;border:none;border-bottom:1px solid var(--border2);color:var(--text);font-size:13px;font-weight:500;width:90px;font-family:var(--sans);padding:2px 4px;" value="${name}" data-orig="${name}" class="name-edit"/></td>
+      <td style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">${chips}<button style="background:var(--red-bg);border:1px solid rgba(248,113,113,0.3);color:var(--red);border-radius:4px;font-size:11px;padding:1px 6px;cursor:pointer;margin-left:4px;" data-name="${name}" class="del-btn">삭제</button></td>
+    `;
     tbody.appendChild(tr);
+  });
+  document.querySelectorAll('.name-edit').forEach(input=>{
+    input.addEventListener('change',()=>{
+      const orig=input.dataset.orig;
+      const newName=input.value.trim();
+      if(newName && newName!==orig && applicants[orig]){
+        applicants[newName]=applicants[orig];
+        delete applicants[orig];
+        input.dataset.orig=newName;
+        renderApplicants();
+      }
+    });
+  });
+  document.querySelectorAll('.del-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      delete applicants[btn.dataset.name];
+      renderApplicants();
+    });
   });
   show('extractedCard');
 }
 
 document.getElementById('assignBtn').addEventListener('click',runAssignment);
-document.getElementById('rerunBtn').addEventListener('click',runAssignment);
+document.getElementById('rerunBtn').addEventListener('click',()=>{
+  hide('resultSection');
+  runAssignment();
+});
 document.getElementById('reExtractBtn').addEventListener('click',()=>{
   hide('extractedCard');hide('resultSection');
   document.getElementById('logBox').innerHTML='';setStep(1);
@@ -330,21 +355,20 @@ function runAssignment(){
     for(const t of times) if(t in TIME_TO_TABLE) tableApps[TIME_TO_TABLE[t]].push(name);
 
   const activeTables=new Set(tableApps.map((a,i)=>a.length>=MIN?i:-1).filter(i=>i>=0));
-  const allStudents=[...new Set(Object.keys(applicants))];
+  const allStudents=shuffle([...new Set(Object.keys(applicants))]);  // 처음부터 랜덤 순서
   const assignments=Array.from({length:6},()=>[]);
   const assignCount={};
   for(const s of allStudents) assignCount[s]=0;
 
   if(activeTables.size>0){
     const sat={};
-    for(const s of allStudents) sat[s]=[...activeTables].filter(t=>tableApps[t].includes(s));
+    for(const s of allStudents) sat[s]=shuffle([...activeTables].filter(t=>tableApps[t].includes(s)));
 
     // PASS 1: 최소 1번 배정 (선택지 적은 사람 우선, 같으면 랜덤)
-    const queue=shuffle(allStudents.filter(s=>sat[s].length>0)).sort((a,b)=>sat[a].length-sat[b].length);
+    const queue=[...allStudents].sort((a,b)=>sat[a].length-sat[b].length);
     const assignedOnce=new Set();
     for(const s of queue){
-      const tables=shuffle(sat[s]);
-      for(const t of tables){
+      for(const t of sat[s]){
         if(assignments[t].length<MAX){assignments[t].push(s);assignedOnce.add(s);assignCount[s]++;break;}
       }
     }
@@ -353,15 +377,18 @@ function runAssignment(){
       const avail=shuffle([...activeTables].filter(t=>assignments[t].length<MAX));
       if(avail.length){assignments[avail[0]].push(s);assignCount[s]++;}
     }
-    // PASS 3: 남은 자리 — 배정 횟수 적은 사람 우선 (편차 최소화), 같으면 완전 랜덤
-    const tableOrder=shuffle([...activeTables]);
+    // PASS 3: 남은 자리 — 빈 슬롯을 (테이블, 후보자) 쌍으로 만들어 한꺼번에 랜덤 배정
+    // 편차 최소화: 배정 횟수 적은 사람 우선이지만 같은 횟수끼리는 완전 랜덤
     let changed=true;
     while(changed){
       changed=false;
-      for(const t of tableOrder){
+      // 매 라운드마다 테이블 순서 새로 섞기
+      for(const t of shuffle([...activeTables])){
         if(assignments[t].length>=MAX)continue;
-        const cands=shuffle(tableApps[t].filter(s=>!assignments[t].includes(s)))
-          .sort((a,b)=>assignCount[a]-assignCount[b]);
+        const minCount=Math.min(...tableApps[t].filter(s=>!assignments[t].includes(s)).map(s=>assignCount[s]).concat([Infinity]));
+        if(minCount===Infinity)continue;
+        // 최소 횟수인 사람들만 추려서 랜덤으로 1명 선택
+        const cands=shuffle(tableApps[t].filter(s=>!assignments[t].includes(s)&&assignCount[s]===minCount));
         if(!cands.length)continue;
         assignments[t].push(cands[0]);assignCount[cands[0]]++;changed=true;
       }

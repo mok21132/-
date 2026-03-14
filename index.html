@@ -126,7 +126,7 @@
     <div class="card-title">투표 현황 캡처 사진</div>
     <div class="upload-zone" id="dropzone">
       <div class="upload-title">사진을 드래그하거나 클릭해서 업로드</div>
-      <div class="upload-hint">카카오톡 투표 현황 캡처 · 최대 10장 · JPG / PNG</div>
+      <div class="upload-hint">카카오톡 투표 현황 캡처 · 최대 15장 · JPG / PNG</div>
       <input type="file" id="fileInput" accept="image/*" multiple />
     </div>
     <div class="preview-grid" id="previewGrid"></div>
@@ -196,7 +196,7 @@ fileInput.addEventListener('change',e=>addFiles(e.target.files));
 
 function addFiles(files){
   for(const f of files){
-    if(images.length>=10)break;
+    if(images.length>=15)break;
     if(!f.type.startsWith('image/'))continue;
     const r=new FileReader();
     r.onload=ev=>{images.push({data:ev.target.result});renderPreviews();};
@@ -292,10 +292,12 @@ async function analyzeImage(base64){
 - 글자가 불확실하면 이미지를 더 주의 깊게 살펴보세요
 
 [투표 항목 → 시간대 매핑 규칙]
-- "1차 참석" → ["3/17 (화) 6-7"]
-- "1+2차 참석" → ["3/18 (수) 6-7"]
-- "2차 참석" → ["3/18 (수) 7-8"]
-- "불참" → ["3/20 (금) 6-7"]
+- "익스프로러" → ["3/17 (화) 6-7"]
+- "핀셋" → ["3/17 (화) 7-8"]
+- "블레이드 날" → ["3/18 (수) 6-7"]
+- "블레이드 홀더" → ["3/18 (수) 7-8"]
+- "붓" → ["3/20 (금) 6-7"]
+- "자수실" → ["3/20 (금) 7-8"]
 
 출력 가능한 시간대: 3/17 (화) 6-7 / 3/17 (화) 7-8 / 3/18 (수) 6-7 / 3/18 (수) 7-8 / 3/20 (금) 6-7 / 3/20 (금) 7-8
 

@@ -275,14 +275,14 @@ async function analyzeImage(base64){
 
 투표 항목과 시간대 매핑 규칙 (반드시 따르세요):
 - "1차 참석" → ["화 6:30-7:30"]
-- "2차 참석" → ["금 7:30-8:30"]
 - "1+2차 참석" → ["수 6:30-7:30"]
-- "불참" → ["화 7:30-8:30" ]
+- "2차 참석" → ["수 7:30-8:30"]
+- "불참" → ["금 6:30-7:30"]
 
 출력 가능한 시간대: 화 6:30-7:30 / 화 7:30-8:30 / 수 6:30-7:30 / 수 7:30-8:30 / 금 6:30-7:30 / 금 7:30-8:30
 
 반드시 JSON만 반환 (다른 텍스트 없이):
-{"이름1": ["화 6:30-7:30"], "이름2": ["화 6:30-7:30","금 7:30-8:30"], "이름3": []}`;
+{"이름1": ["화 6:30-7:30"], "이름2": ["수 6:30-7:30"], "이름3": ["금 6:30-7:30"]}`;
 
   const resp=await fetch('/.netlify/functions/claude',{
     method:'POST',
@@ -339,27 +339,29 @@ function runAssignment(){
     const sat={};
     for(const s of allStudents) sat[s]=[...activeTables].filter(t=>tableApps[t].includes(s));
 
-    // PASS 1: 최소 1번 배정 (선택지 적은 사람 우선)
-    const queue=allStudents.filter(s=>sat[s].length>0).sort((a,b)=>sat[a].length-sat[b].length);
+    // PASS 1: 최소 1번 배정 (선택지 적은 사람 우선, 같으면 랜덤)
+    const queue=shuffle(allStudents.filter(s=>sat[s].length>0)).sort((a,b)=>sat[a].length-sat[b].length);
     const assignedOnce=new Set();
     for(const s of queue){
-      for(const t of sat[s]){
+      const tables=shuffle(sat[s]);
+      for(const t of tables){
         if(assignments[t].length<MAX){assignments[t].push(s);assignedOnce.add(s);assignCount[s]++;break;}
       }
     }
     // PASS 2: 미배정자 랜덤 배정
     for(const s of shuffle(allStudents.filter(s=>!assignedOnce.has(s)))){
-      const avail=[...activeTables].filter(t=>assignments[t].length<MAX);
-      if(avail.length){assignments[shuffle(avail)[0]].push(s);assignCount[s]++;}
+      const avail=shuffle([...activeTables].filter(t=>assignments[t].length<MAX));
+      if(avail.length){assignments[avail[0]].push(s);assignCount[s]++;}
     }
-    // PASS 3: 남은 자리 — 배정 횟수 적은 사람 우선 (편차 최소화)
+    // PASS 3: 남은 자리 — 배정 횟수 적은 사람 우선 (편차 최소화), 같으면 완전 랜덤
+    const tableOrder=shuffle([...activeTables]);
     let changed=true;
     while(changed){
       changed=false;
-      for(const t of activeTables){
+      for(const t of tableOrder){
         if(assignments[t].length>=MAX)continue;
-        const cands=tableApps[t].filter(s=>!assignments[t].includes(s))
-          .sort((a,b)=>assignCount[a]-assignCount[b]||Math.random()-0.5);
+        const cands=shuffle(tableApps[t].filter(s=>!assignments[t].includes(s)))
+          .sort((a,b)=>assignCount[a]-assignCount[b]);
         if(!cands.length)continue;
         assignments[t].push(cands[0]);assignCount[cands[0]]++;changed=true;
       }

@@ -472,7 +472,7 @@ function renderResult(assignments,tableApps,activeTables,allStudents,assignCount
       </div>
       ${isActive
         ?`<div class="names-wrap">${members.map(n=>`<span class="name-chip">${n}</span>`).join('')||'<span class="none-hint">없음</span>'}</div>`
-        :`<div class="none-hint">신청 ${tableApps[i].length}명 · 16명 미만</div>`}
+        :`<div class="none-hint">신청 ${tableApps[i].length}명 · 15명 미만</div>`}
     `;
     grid.appendChild(card);
   });

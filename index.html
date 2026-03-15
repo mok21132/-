@@ -381,11 +381,6 @@ function runAssignment(){
   for(const s of allStudents) assignCount[s]=0;
 
   if(activeTables.size>0){
-    // 이번 특별 로직:
-    // - Table 3 (index 2): 18명 중 16명 랜덤 추첨
-    // - Table 1 (index 0), Table 2 (index 1): 각각 랜덤 추첨, 탈락자 최대한 겹치지 않게
-    // - 나머지 테이블: 기존 랜덤 로직
-
     const TRIES = 500;
     let best = null, bestOverlap = Infinity;
 
@@ -404,11 +399,11 @@ function runAssignment(){
         }
       }
 
-      // Table 1(0)과 Table 2(1) 탈락자 겹침 수 계산
-      const losers0 = new Set(tableApps[0].filter(s=>!tryAsgn[0].includes(s)));
-      const losers1 = new Set(tableApps[1].filter(s=>!tryAsgn[1].includes(s)));
+      // Table 1(0)과 Table 2(1) 배정된 사람 겹침 수 계산
+      const picked0 = new Set(tryAsgn[0]);
+      const picked1 = new Set(tryAsgn[1]);
       let overlap = 0;
-      for(const s of losers0) if(losers1.has(s)) overlap++;
+      for(const s of picked0) if(picked1.has(s)) overlap++;
 
       if(overlap < bestOverlap){
         bestOverlap = overlap;

@@ -435,7 +435,7 @@ function runAssignment(){
       let doubleAssigned = 0;
       for(const s of picked0) if(picked1.has(s)) doubleAssigned++;
 
-      const score = unassigned * 1000 + doubleAssigned;
+      const score = doubleAssigned * 1000 + unassigned;
 
       if(score < bestScore){
         bestScore = score;

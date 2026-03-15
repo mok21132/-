@@ -381,7 +381,7 @@ function runAssignment(){
   for(const s of allStudents) assignCount[s]=0;
 
   if(activeTables.size>0){
-    const TRIES = 1000;
+    const TRIES = 5000;
     let best = null, bestScore = Infinity;
 
     for(let t=0; t<TRIES; t++){
@@ -435,7 +435,7 @@ function runAssignment(){
       let doubleAssigned = 0;
       for(const s of picked0) if(picked1.has(s)) doubleAssigned++;
 
-      const score = unassigned + doubleAssigned;
+      const score = unassigned * 1000 + doubleAssigned;
 
       if(score < bestScore){
         bestScore = score;

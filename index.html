@@ -389,20 +389,44 @@ function runAssignment(){
       const tryCnt = {};
       for(const s of allStudents) tryCnt[s]=0;
 
-      // Table 3 (index 2): 랜덤 16명
+      // T1+T2 둘 다 신청한 사람은 둘 중 하나에만 배정 (랜덤으로 어느 쪽에 넣을지 결정)
+      const t0set = new Set(activeTables.has(0) ? tableApps[0] : []);
+      const t1set = new Set(activeTables.has(1) ? tableApps[1] : []);
+      const bothApplicants = shuffle([...t0set].filter(s=>t1set.has(s)));
+      const forcedT0 = new Set(); // T1에만 배정될 사람
+      const forcedT1 = new Set(); // T2에만 배정될 사람
+
+      for(const s of bothApplicants){
+        // 랜덤으로 T1 또는 T2 중 하나만 배정
+        if(Math.random()<0.5) forcedT0.add(s);
+        else forcedT1.add(s);
+      }
+
+      // Table 1: T1만 신청자 + forcedT0 에서 랜덤 16명
+      if(activeTables.has(0)){
+        const only0 = [...t0set].filter(s=>!t1set.has(s));
+        const cands = shuffle([...only0, ...forcedT0]);
+        for(const s of cands){
+          if(tryAsgn[0].length>=MAX) break;
+          tryAsgn[0].push(s); tryCnt[s]++;
+        }
+      }
+
+      // Table 2: T2만 신청자 + forcedT1 에서 랜덤 16명
+      if(activeTables.has(1)){
+        const only1 = [...t1set].filter(s=>!t0set.has(s));
+        const cands = shuffle([...only1, ...forcedT1]);
+        for(const s of cands){
+          if(tryAsgn[1].length>=MAX) break;
+          tryAsgn[1].push(s); tryCnt[s]++;
+        }
+      }
+
+      // Table 3 랜덤
       if(activeTables.has(2)){
         for(const s of shuffle([...tableApps[2]])){
           if(tryAsgn[2].length>=MAX) break;
           tryAsgn[2].push(s); tryCnt[s]++;
-        }
-      }
-
-      // Table 1, 2: 완전 랜덤
-      for(const ti of [0,1]){
-        if(!activeTables.has(ti)) continue;
-        for(const s of shuffle([...tableApps[ti]])){
-          if(tryAsgn[ti].length>=MAX) break;
-          tryAsgn[ti].push(s); tryCnt[s]++;
         }
       }
 
@@ -414,24 +438,18 @@ function runAssignment(){
         }
       }
 
+      // 미배정자: 신청한 테이블 중 하나도 못 들어간 사람
       const picked0 = new Set(tryAsgn[0]);
       const picked1 = new Set(tryAsgn[1]);
-      const t0set = new Set(tableApps[0]);
-      const t1set = activeTables.has(1) ? new Set(tableApps[1]) : new Set();
       const allT12 = new Set([...t0set, ...t1set]);
-
-      // 미배정자: 각 사람이 신청한 테이블 중 하나도 배정 못 받은 사람 수 (사람 기준)
       let unassigned = 0;
       for(const s of allT12){
-        const inT0 = t0set.has(s);
-        const inT1 = t1set.has(s);
-        const gotT0 = inT0 && picked0.has(s);
-        const gotT1 = inT1 && picked1.has(s);
-        // 신청한 테이블 중 하나도 배정 안 됐으면 미배정
+        const gotT0 = picked0.has(s);
+        const gotT1 = picked1.has(s);
         if(!gotT0 && !gotT1) unassigned++;
       }
 
-      // T1+T2 둘 다 배정된 사람 수
+      // T1+T2 둘 다 배정된 사람 (이제 거의 0이어야 함)
       let doubleAssigned = 0;
       for(const s of picked0) if(picked1.has(s)) doubleAssigned++;
 

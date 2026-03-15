@@ -381,61 +381,45 @@ function runAssignment(){
   for(const s of allStudents) assignCount[s]=0;
 
   if(activeTables.size>0){
-    // PASS 1: 편차(최대-최소) ≤ 1 될 때까지 완전 랜덤 반복 (최대 200번)
-    const MAX_TRIES=200;
-    let bestAssignments=null, bestCount=null, bestSpread=Infinity;
+    // 이번 특별 로직:
+    // - Table 3 (index 2): 18명 중 16명 랜덤 추첨
+    // - Table 1 (index 0), Table 2 (index 1): 각각 랜덤 추첨, 탈락자 최대한 겹치지 않게
+    // - 나머지 테이블: 기존 랜덤 로직
 
-    for(let attempt=0;attempt<MAX_TRIES;attempt++){
-      const tryAsgn=Array.from({length:6},()=>[]);
-      const tryCnt={};
+    const TRIES = 500;
+    let best = null, bestOverlap = Infinity;
+
+    for(let t=0; t<TRIES; t++){
+      const tryAsgn = Array.from({length:6},()=>[]);
+      const tryCnt = {};
       for(const s of allStudents) tryCnt[s]=0;
 
-      for(const t of shuffle([...activeTables])){
-        // 아직 한 번도 뽑히지 않은 사람을 앞에, 이미 뽑힌 사람은 뒤에 배치
-        const notYet=shuffle(tableApps[t].filter(s=>tryCnt[s]===0));
-        const already=shuffle(tableApps[t].filter(s=>tryCnt[s]>0));
-        const cands=[...notYet,...already];
+      // 모든 활성 테이블 랜덤 추첨
+      for(const ti of [...activeTables]){
+        const cands = shuffle([...tableApps[ti]]);
         for(const s of cands){
-          if(tryAsgn[t].length>=MAX) break;
-          if(tryAsgn[t].includes(s)) continue;
-          tryAsgn[t].push(s);
+          if(tryAsgn[ti].length>=MAX) break;
+          tryAsgn[ti].push(s);
           tryCnt[s]++;
         }
       }
 
-      // 편차 계산 (배정된 사람 기준)
-      const counts=allStudents.map(s=>tryCnt[s]).filter(v=>v>0);
-      const spread=counts.length?(Math.max(...counts)-Math.min(...counts)):0;
+      // Table 1(0)과 Table 2(1) 탈락자 겹침 수 계산
+      const losers0 = new Set(tableApps[0].filter(s=>!tryAsgn[0].includes(s)));
+      const losers1 = new Set(tableApps[1].filter(s=>!tryAsgn[1].includes(s)));
+      let overlap = 0;
+      for(const s of losers0) if(losers1.has(s)) overlap++;
 
-      if(spread<bestSpread){
-        bestSpread=spread;
-        bestAssignments=tryAsgn.map(a=>[...a]);
-        bestCount={...tryCnt};
+      if(overlap < bestOverlap){
+        bestOverlap = overlap;
+        best = {asgn: tryAsgn.map(a=>[...a]), cnt: {...tryCnt}};
       }
-      if(spread<=1) break; // 기준 달성하면 바로 종료
+      if(overlap === 0) break;
     }
 
-    // 최적 결과 적용
-    for(let i=0;i<6;i++) assignments[i]=bestAssignments[i];
-    for(const s of allStudents) assignCount[s]=bestCount[s];
-
-    // PASS 2: 빈 자리에 배정 횟수 적은 사람 우선으로 채워서 편차 추가 감소
-    let changed=true;
-    while(changed){
-      changed=false;
-      for(const t of shuffle([...activeTables])){
-        if(assignments[t].length>=MAX) continue;
-        const eligible=tableApps[t].filter(s=>!assignments[t].includes(s));
-        if(!eligible.length) continue;
-        const minCount=Math.min(...eligible.map(s=>assignCount[s]));
-        const cands=shuffle(eligible.filter(s=>assignCount[s]===minCount));
-        assignments[t].push(cands[0]);
-        assignCount[cands[0]]++;
-        changed=true;
-      }
-    }
+    for(let i=0;i<6;i++) assignments[i]=best.asgn[i];
+    for(const s of allStudents) assignCount[s]=best.cnt[s];
   }
-
   lastAssignments={assignments,tableApps,activeTables,allStudents,assignCount};
   renderResult(assignments,tableApps,activeTables,allStudents,assignCount);
 }

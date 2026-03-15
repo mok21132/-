@@ -382,34 +382,73 @@ function runAssignment(){
 
   if(activeTables.size>0){
     const TRIES = 500;
-    let best = null, bestOverlap = Infinity;
+    let best = null, bestScore = Infinity;
 
     for(let t=0; t<TRIES; t++){
       const tryAsgn = Array.from({length:6},()=>[]);
       const tryCnt = {};
       for(const s of allStudents) tryCnt[s]=0;
 
-      // 모든 활성 테이블 랜덤 추첨
-      for(const ti of [...activeTables]){
-        const cands = shuffle([...tableApps[ti]]);
-        for(const s of cands){
-          if(tryAsgn[ti].length>=MAX) break;
-          tryAsgn[ti].push(s);
+      // STEP 1: Table 1+2 둘 다 신청한 사람 먼저 처리 → 둘 중 하나 반드시 배정
+      const both = shuffle(tableApps[0].filter(s=>tableApps[1]&&tableApps[1].includes(s)));
+      for(const s of both){
+        const t0ok = tryAsgn[0].length<MAX;
+        const t1ok = tryAsgn[1].length<MAX;
+        if(t0ok && t1ok){
+          if(Math.random()<0.5){ tryAsgn[0].push(s); } else { tryAsgn[1].push(s); }
           tryCnt[s]++;
+        } else if(t0ok){ tryAsgn[0].push(s); tryCnt[s]++; }
+        else if(t1ok){ tryAsgn[1].push(s); tryCnt[s]++; }
+      }
+
+      // STEP 2: Table 1만 신청한 사람 → 남은 자리 채우기
+      const only0 = shuffle(tableApps[0].filter(s=>!(tableApps[1]&&tableApps[1].includes(s))));
+      for(const s of only0){
+        if(tryAsgn[0].length>=MAX) break;
+        tryAsgn[0].push(s); tryCnt[s]++;
+      }
+
+      // STEP 3: Table 2만 신청한 사람 → 남은 자리 채우기
+      const only1 = activeTables.has(1) ? shuffle(tableApps[1].filter(s=>!tableApps[0].includes(s))) : [];
+      for(const s of only1){
+        if(tryAsgn[1].length>=MAX) break;
+        tryAsgn[1].push(s); tryCnt[s]++;
+      }
+
+      // STEP 4: Table 1, 2 남은 자리 → 미배정자 우선으로 채우기
+      for(const ti of [0,1]){
+        if(!activeTables.has(ti)) continue;
+        const notYet = shuffle(tableApps[ti].filter(s=>tryCnt[s]===0&&!tryAsgn[ti].includes(s)));
+        const already = shuffle(tableApps[ti].filter(s=>tryCnt[s]>0&&!tryAsgn[ti].includes(s)));
+        for(const s of [...notYet,...already]){
+          if(tryAsgn[ti].length>=MAX) break;
+          tryAsgn[ti].push(s); tryCnt[s]++;
         }
       }
 
-      // Table 1(0)과 Table 2(1) 배정된 사람 겹침 수 계산
+      // STEP 5: 나머지 활성 테이블 랜덤 추첨
+      for(const ti of [...activeTables].filter(i=>i!==0&&i!==1)){
+        const cands = shuffle([...tableApps[ti]]);
+        for(const s of cands){
+          if(tryAsgn[ti].length>=MAX) break;
+          tryAsgn[ti].push(s); tryCnt[s]++;
+        }
+      }
+
+      // 점수: 미배정자 수 * 1000 + Table1/2 겹침 수
+      const assigned = new Set(tryAsgn.flat());
+      const unassigned = allStudents.filter(s=>!assigned.has(s)).length;
       const picked0 = new Set(tryAsgn[0]);
       const picked1 = new Set(tryAsgn[1]);
       let overlap = 0;
       for(const s of picked0) if(picked1.has(s)) overlap++;
+      const score = unassigned * 1000 + overlap;
 
-      if(overlap < bestOverlap){
-        bestOverlap = overlap;
+      if(score < bestScore){
+        bestScore = score;
         best = {asgn: tryAsgn.map(a=>[...a]), cnt: {...tryCnt}};
       }
-      if(overlap === 0) break;
+      if(score === 0) break;
     }
 
     for(let i=0;i<6;i++) assignments[i]=best.asgn[i];

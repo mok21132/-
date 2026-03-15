@@ -389,7 +389,7 @@ function runAssignment(){
       const tryCnt = {};
       for(const s of allStudents) tryCnt[s]=0;
 
-      // Table 3 (index 2): 18명 중 16명 랜덤 추첨
+      // Table 3 (index 2): 랜덤 16명 추첨
       if(activeTables.has(2)){
         const cands = shuffle([...tableApps[2]]);
         for(const s of cands){
@@ -398,7 +398,7 @@ function runAssignment(){
         }
       }
 
-      // Table 1 (index 0), Table 2 (index 1): 완전 랜덤 추첨
+      // Table 1 (index 0), Table 2 (index 1): 완전 랜덤
       for(const ti of [0,1]){
         if(!activeTables.has(ti)) continue;
         const cands = shuffle([...tableApps[ti]]);
@@ -408,7 +408,7 @@ function runAssignment(){
         }
       }
 
-      // 나머지 활성 테이블 랜덤 추첨
+      // 나머지 활성 테이블 랜덤
       for(const ti of [...activeTables].filter(i=>i!==0&&i!==1&&i!==2)){
         const cands = shuffle([...tableApps[ti]]);
         for(const s of cands){
@@ -417,19 +417,32 @@ function runAssignment(){
         }
       }
 
-      // 점수: Table 1+2 둘 다 탈락한 사람 수 (최소화 목표)
+      // 미배정자 계산:
+      // Table 1만 신청 → T1 탈락이면 미배정
+      // Table 2만 신청 → T2 탈락이면 미배정
+      // Table 1+2 둘 다 신청 → T1, T2 둘 다 탈락이면 미배정
       const picked0 = new Set(tryAsgn[0]);
       const picked1 = new Set(tryAsgn[1]);
-      // Table 1 또는 Table 2 신청자 전체 중 둘 다 탈락한 사람
-      const allT12 = new Set([...tableApps[0], ...(activeTables.has(1)?tableApps[1]:[])]);
-      const bothLosers = [...allT12].filter(s=>{
-        const inT0 = tableApps[0].includes(s);
-        const inT1 = activeTables.has(1)&&tableApps[1].includes(s);
-        return (inT0&&!picked0.has(s)||!inT0) && (inT1&&!picked1.has(s)||!inT1) && (inT0||inT1) && !picked0.has(s) && !picked1.has(s);
-      }).length;
+      const t0set = new Set(tableApps[0]);
+      const t1set = activeTables.has(1) ? new Set(tableApps[1]) : new Set();
 
-      if(bothLosers < bestScore){
-        bestScore = bothLosers;
+      // T1, T2 신청자 전체 (중복 제거)
+      const allT12 = new Set([...t0set, ...t1set]);
+      let unassignedCount = 0;
+      for(const s of allT12){
+        const inT0 = t0set.has(s);
+        const inT1 = t1set.has(s);
+        const gotT0 = picked0.has(s);
+        const gotT1 = picked1.has(s);
+        // 신청한 테이블 중 하나라도 배정됐으면 OK
+        if(inT0 && gotT0) continue;
+        if(inT1 && gotT1) continue;
+        // 신청한 테이블 모두 탈락 → 미배정
+        unassignedCount++;
+      }
+
+      if(unassignedCount < bestScore){
+        bestScore = unassignedCount;
         best = {asgn: tryAsgn.map(a=>[...a]), cnt: {...tryCnt}};
       }
       if(bestScore === 0) break;

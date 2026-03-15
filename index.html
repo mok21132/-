@@ -381,7 +381,7 @@ function runAssignment(){
   for(const s of allStudents) assignCount[s]=0;
 
   if(activeTables.size>0){
-    const TRIES = 500;
+    const TRIES = 1000;
     let best = null, bestScore = Infinity;
 
     for(let t=0; t<TRIES; t++){
@@ -389,10 +389,9 @@ function runAssignment(){
       const tryCnt = {};
       for(const s of allStudents) tryCnt[s]=0;
 
-      // Table 3 (index 2): 랜덤 16명 추첨
+      // Table 3 (index 2): 랜덤 16명
       if(activeTables.has(2)){
-        const cands = shuffle([...tableApps[2]]);
-        for(const s of cands){
+        for(const s of shuffle([...tableApps[2]])){
           if(tryAsgn[2].length>=MAX) break;
           tryAsgn[2].push(s); tryCnt[s]++;
         }
@@ -401,17 +400,15 @@ function runAssignment(){
       // Table 1, 2: 완전 랜덤
       for(const ti of [0,1]){
         if(!activeTables.has(ti)) continue;
-        const cands = shuffle([...tableApps[ti]]);
-        for(const s of cands){
+        for(const s of shuffle([...tableApps[ti]])){
           if(tryAsgn[ti].length>=MAX) break;
           tryAsgn[ti].push(s); tryCnt[s]++;
         }
       }
 
-      // 나머지 활성 테이블 랜덤
+      // 나머지 활성 테이블
       for(const ti of [...activeTables].filter(i=>i!==0&&i!==1&&i!==2)){
-        const cands = shuffle([...tableApps[ti]]);
-        for(const s of cands){
+        for(const s of shuffle([...tableApps[ti]])){
           if(tryAsgn[ti].length>=MAX) break;
           tryAsgn[ti].push(s); tryCnt[s]++;
         }
@@ -421,28 +418,24 @@ function runAssignment(){
       const picked1 = new Set(tryAsgn[1]);
       const t0set = new Set(tableApps[0]);
       const t1set = activeTables.has(1) ? new Set(tableApps[1]) : new Set();
-
-      // 1. 미배정자 수: 신청한 테이블 모두 탈락한 사람
       const allT12 = new Set([...t0set, ...t1set]);
+
+      // 미배정자: 각 사람이 신청한 테이블 중 하나도 배정 못 받은 사람 수 (사람 기준)
       let unassigned = 0;
       for(const s of allT12){
-        const gotT0 = picked0.has(s);
-        const gotT1 = picked1.has(s);
+        const inT0 = t0set.has(s);
+        const inT1 = t1set.has(s);
+        const gotT0 = inT0 && picked0.has(s);
+        const gotT1 = inT1 && picked1.has(s);
+        // 신청한 테이블 중 하나도 배정 안 됐으면 미배정
         if(!gotT0 && !gotT1) unassigned++;
       }
 
-      // 2. 탈락자 겹침: T1 탈락자이면서 T2도 탈락한 사람
-      const loser0 = new Set([...t0set].filter(s=>!picked0.has(s)));
-      const loser1 = new Set([...t1set].filter(s=>!picked1.has(s)));
-      let loserOverlap = 0;
-      for(const s of loser0) if(loser1.has(s)) loserOverlap++;
+      // T1+T2 둘 다 배정된 사람 수
+      let doubleAssigned = 0;
+      for(const s of picked0) if(picked1.has(s)) doubleAssigned++;
 
-      // 3. 선발자 겹침: T1, T2 둘 다 뽑힌 사람
-      let pickedOverlap = 0;
-      for(const s of picked0) if(picked1.has(s)) pickedOverlap++;
-
-      // 점수: 미배정 * 1000 + 탈락자겹침 * 10 + 선발자겹침
-      const score = unassigned * 10000 + pickedOverlap * 100 + loserOverlap;
+      const score = unassigned + doubleAssigned;
 
       if(score < bestScore){
         bestScore = score;

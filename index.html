@@ -382,43 +382,45 @@ function runAssignment(){
 
   if(activeTables.size>0){
     const TRIES = 500;
+    const OUTER_MAX = 50;
     let best = null, bestScore = Infinity;
 
-    for(let t=0; t<TRIES; t++){
-      const tryAsgn = Array.from({length:6},()=>[]);
-      const tryCnt = {};
-      for(const s of allStudents) tryCnt[s]=0;
+    for(let outer=0; outer<OUTER_MAX; outer++){
+      for(let t=0; t<TRIES; t++){
+        const tryAsgn = Array.from({length:6},()=>[]);
+        const tryCnt = {};
+        for(const s of allStudents) tryCnt[s]=0;
 
-      // 모든 활성 테이블 완전 랜덤 추첨
-      for(const ti of shuffle([...activeTables])){
-        const cands = shuffle([...tableApps[ti]]);
-        for(const s of cands){
-          if(tryAsgn[ti].length>=MAX) break;
-          tryAsgn[ti].push(s);
-          tryCnt[s]++;
+        // 모든 활성 테이블 완전 랜덤 추첨
+        for(const ti of shuffle([...activeTables])){
+          const cands = shuffle([...tableApps[ti]]);
+          for(const s of cands){
+            if(tryAsgn[ti].length>=MAX) break;
+            tryAsgn[ti].push(s);
+            tryCnt[s]++;
+          }
         }
+
+        // Table 1(0), Table 2(1) 둘 다 탈락한 사람 수
+        const picked0 = new Set(tryAsgn[0]);
+        const picked1 = new Set(tryAsgn[1]);
+        const bothApplicants = tableApps[0].filter(s=>activeTables.has(1)&&tableApps[1].includes(s));
+        const bothLosers = bothApplicants.filter(s=>!picked0.has(s)&&!picked1.has(s)).length;
+        const only0Losers = tableApps[0].filter(s=>!(activeTables.has(1)&&tableApps[1].includes(s))&&!picked0.has(s)).length;
+        const only1Losers = activeTables.has(1)?tableApps[1].filter(s=>!tableApps[0].includes(s)&&!picked1.has(s)).length:0;
+        const score = bothLosers*100 + only0Losers*10 + only1Losers*10;
+
+        if(score < bestScore){
+          bestScore = score;
+          best = {asgn: tryAsgn.map(a=>[...a]), cnt: {...tryCnt}};
+        }
+        if(score === 0) break;
       }
 
-      // Table 1(0), Table 2(1) 둘 다 신청했는데 둘 다 탈락한 사람 수 계산
-      const picked0 = new Set(tryAsgn[0]);
-      const picked1 = new Set(tryAsgn[1]);
-      const bothApplicants = tableApps[0].filter(s=>activeTables.has(1)&&tableApps[1].includes(s));
-      const bothLosers = bothApplicants.filter(s=>!picked0.has(s)&&!picked1.has(s)).length;
-
-      // Table 1만 신청했는데 탈락한 사람 수
-      const only0Losers = tableApps[0].filter(s=>!(activeTables.has(1)&&tableApps[1].includes(s))&&!picked0.has(s)).length;
-
-      // Table 2만 신청했는데 탈락한 사람 수
-      const only1Losers = activeTables.has(1) ? tableApps[1].filter(s=>!tableApps[0].includes(s)&&!picked1.has(s)).length : 0;
-
-      // 점수: 전체 탈락자 수 (낮을수록 좋음)
-      const score = bothLosers * 100 + only0Losers * 10 + only1Losers * 10;
-
-      if(score < bestScore){
-        bestScore = score;
-        best = {asgn: tryAsgn.map(a=>[...a]), cnt: {...tryCnt}};
-      }
-      if(score === 0) break;
+      // 미배정 2명 이하면 종료
+      const assigned = new Set(best.asgn.flat());
+      const unassigned = allStudents.filter(s=>!assigned.has(s)).length;
+      if(unassigned <= 2) break;
     }
 
     for(let i=0;i<6;i++) assignments[i]=best.asgn[i];

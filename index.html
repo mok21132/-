@@ -381,36 +381,54 @@ function runAssignment(){
   for(const s of allStudents) assignCount[s]=0;
 
   if(activeTables.size>0){
-    const sat={};
-    for(const s of allStudents) sat[s]=shuffle([...activeTables].filter(t=>tableApps[t].includes(s)));
+    // PASS 1: 편차(최대-최소) ≤ 1 될 때까지 완전 랜덤 반복 (최대 200번)
+    const MAX_TRIES=200;
+    let bestAssignments=null, bestCount=null, bestSpread=Infinity;
 
-    // PASS 1: 최소 1번 배정 (선택지 적은 사람 우선, 같으면 랜덤)
-    const queue=[...allStudents].sort((a,b)=>sat[a].length-sat[b].length);
-    const assignedOnce=new Set();
-    for(const s of queue){
-      for(const t of sat[s]){
-        if(assignments[t].length<MAX){assignments[t].push(s);assignedOnce.add(s);assignCount[s]++;break;}
+    for(let attempt=0;attempt<MAX_TRIES;attempt++){
+      const tryAsgn=Array.from({length:6},()=>[]);
+      const tryCnt={};
+      for(const s of allStudents) tryCnt[s]=0;
+
+      for(const t of shuffle([...activeTables])){
+        const cands=shuffle([...tableApps[t]]);
+        for(const s of cands){
+          if(tryAsgn[t].length>=MAX) break;
+          if(tryAsgn[t].includes(s)) continue;
+          tryAsgn[t].push(s);
+          tryCnt[s]++;
+        }
       }
+
+      // 편차 계산 (배정된 사람 기준)
+      const counts=allStudents.map(s=>tryCnt[s]).filter(v=>v>0);
+      const spread=counts.length?(Math.max(...counts)-Math.min(...counts)):0;
+
+      if(spread<bestSpread){
+        bestSpread=spread;
+        bestAssignments=tryAsgn.map(a=>[...a]);
+        bestCount={...tryCnt};
+      }
+      if(spread<=1) break; // 기준 달성하면 바로 종료
     }
-    // PASS 2: 미배정자 랜덤 배정
-    for(const s of shuffle(allStudents.filter(s=>!assignedOnce.has(s)))){
-      const avail=shuffle([...activeTables].filter(t=>assignments[t].length<MAX));
-      if(avail.length){assignments[avail[0]].push(s);assignCount[s]++;}
-    }
-    // PASS 3: 남은 자리 — 빈 슬롯을 (테이블, 후보자) 쌍으로 만들어 한꺼번에 랜덤 배정
-    // 편차 최소화: 배정 횟수 적은 사람 우선이지만 같은 횟수끼리는 완전 랜덤
+
+    // 최적 결과 적용
+    for(let i=0;i<6;i++) assignments[i]=bestAssignments[i];
+    for(const s of allStudents) assignCount[s]=bestCount[s];
+
+    // PASS 2: 빈 자리에 배정 횟수 적은 사람 우선으로 채워서 편차 추가 감소
     let changed=true;
     while(changed){
       changed=false;
-      // 매 라운드마다 테이블 순서 새로 섞기
       for(const t of shuffle([...activeTables])){
-        if(assignments[t].length>=MAX)continue;
-        const minCount=Math.min(...tableApps[t].filter(s=>!assignments[t].includes(s)).map(s=>assignCount[s]).concat([Infinity]));
-        if(minCount===Infinity)continue;
-        // 최소 횟수인 사람들만 추려서 랜덤으로 1명 선택
-        const cands=shuffle(tableApps[t].filter(s=>!assignments[t].includes(s)&&assignCount[s]===minCount));
-        if(!cands.length)continue;
-        assignments[t].push(cands[0]);assignCount[cands[0]]++;changed=true;
+        if(assignments[t].length>=MAX) continue;
+        const eligible=tableApps[t].filter(s=>!assignments[t].includes(s));
+        if(!eligible.length) continue;
+        const minCount=Math.min(...eligible.map(s=>assignCount[s]));
+        const cands=shuffle(eligible.filter(s=>assignCount[s]===minCount));
+        assignments[t].push(cands[0]);
+        assignCount[cands[0]]++;
+        changed=true;
       }
     }
   }

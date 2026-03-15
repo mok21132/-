@@ -398,7 +398,7 @@ function runAssignment(){
         }
       }
 
-      // Table 1 (index 0), Table 2 (index 1): 완전 랜덤
+      // Table 1, 2: 완전 랜덤
       for(const ti of [0,1]){
         if(!activeTables.has(ti)) continue;
         const cands = shuffle([...tableApps[ti]]);
@@ -417,35 +417,38 @@ function runAssignment(){
         }
       }
 
-      // 미배정자 계산:
-      // Table 1만 신청 → T1 탈락이면 미배정
-      // Table 2만 신청 → T2 탈락이면 미배정
-      // Table 1+2 둘 다 신청 → T1, T2 둘 다 탈락이면 미배정
       const picked0 = new Set(tryAsgn[0]);
       const picked1 = new Set(tryAsgn[1]);
       const t0set = new Set(tableApps[0]);
       const t1set = activeTables.has(1) ? new Set(tableApps[1]) : new Set();
 
-      // T1, T2 신청자 전체 (중복 제거)
+      // 1. 미배정자 수: 신청한 테이블 모두 탈락한 사람
       const allT12 = new Set([...t0set, ...t1set]);
-      let unassignedCount = 0;
+      let unassigned = 0;
       for(const s of allT12){
-        const inT0 = t0set.has(s);
-        const inT1 = t1set.has(s);
         const gotT0 = picked0.has(s);
         const gotT1 = picked1.has(s);
-        // 신청한 테이블 중 하나라도 배정됐으면 OK
-        if(inT0 && gotT0) continue;
-        if(inT1 && gotT1) continue;
-        // 신청한 테이블 모두 탈락 → 미배정
-        unassignedCount++;
+        if(!gotT0 && !gotT1) unassigned++;
       }
 
-      if(unassignedCount < bestScore){
-        bestScore = unassignedCount;
+      // 2. 탈락자 겹침: T1 탈락자이면서 T2도 탈락한 사람
+      const loser0 = new Set([...t0set].filter(s=>!picked0.has(s)));
+      const loser1 = new Set([...t1set].filter(s=>!picked1.has(s)));
+      let loserOverlap = 0;
+      for(const s of loser0) if(loser1.has(s)) loserOverlap++;
+
+      // 3. 선발자 겹침: T1, T2 둘 다 뽑힌 사람
+      let pickedOverlap = 0;
+      for(const s of picked0) if(picked1.has(s)) pickedOverlap++;
+
+      // 점수: 미배정 * 1000 + 탈락자겹침 * 10 + 선발자겹침
+      const score = unassigned * 10000 + pickedOverlap * 100 + loserOverlap;
+
+      if(score < bestScore){
+        bestScore = score;
         best = {asgn: tryAsgn.map(a=>[...a]), cnt: {...tryCnt}};
       }
-      if(bestScore === 0) break;
+      if(score === 0) break;
     }
 
     for(let i=0;i<6;i++) assignments[i]=best.asgn[i];

@@ -391,7 +391,10 @@ function runAssignment(){
       for(const s of allStudents) tryCnt[s]=0;
 
       for(const t of shuffle([...activeTables])){
-        const cands=shuffle([...tableApps[t]]);
+        // 아직 한 번도 뽑히지 않은 사람을 앞에, 이미 뽑힌 사람은 뒤에 배치
+        const notYet=shuffle(tableApps[t].filter(s=>tryCnt[s]===0));
+        const already=shuffle(tableApps[t].filter(s=>tryCnt[s]>0));
+        const cands=[...notYet,...already];
         for(const s of cands){
           if(tryAsgn[t].length>=MAX) break;
           if(tryAsgn[t].includes(s)) continue;
